@@ -82,18 +82,24 @@ router.get('/:patientId', verifyToken, async (req, res) => {
 router.post('/pay', verifyToken, async (req, res) => {
   const { patient_id, amount, phone, network } = req.body;
 
-  // Format phone number (remove leading 0 and add 265)
   let formattedPhone = phone.replace(/^0/, '265');
+  const tx_ref = `BANA-${patient_id}-${Date.now()}`;
 
   try {
+    // Save payment record as pending
+    await db.query(
+      `INSERT INTO payments (patient_id, amount, phone, network, tx_ref, status) VALUES (?, ?, ?, ?, ?, 'pending')`,
+      [patient_id, amount, phone, network, tx_ref]
+    );
+
     const response = await axios.post(
       'https://api.paychangu.com/mobile-money',
       {
         amount: amount,
         currency: 'MWK',
         mobile: formattedPhone,
-        network: network, // AIRTEL or TNM
-        tx_ref: `BANA-${patient_id}-${Date.now()}`,
+        network: network,
+        tx_ref: tx_ref,
         callback_url: 'https://bana-ward-api.onrender.com/api/billing/verify',
         customization: {
           title: 'Bana Ward Payment',
@@ -111,7 +117,7 @@ router.post('/pay', verifyToken, async (req, res) => {
     res.json({
       success: true,
       message: response.data.message || 'Payment initiated. Check your phone for USSD prompt.',
-      tx_ref: `BANA-${patient_id}-${Date.now()}`
+      tx_ref: tx_ref
     });
 
   } catch (err) {
@@ -120,6 +126,29 @@ router.post('/pay', verifyToken, async (req, res) => {
       success: false,
       message: err.response?.data?.message || 'Payment initiation failed.'
     });
+  }
+});
+
+// PAYMENT CALLBACK
+router.get('/verify', async (req, res) => {
+  const { tx_ref, status } = req.query;
+
+  try {
+    if (status === 'successful') {
+      await db.query(
+        `UPDATE payments SET status = 'successful' WHERE tx_ref = ?`,
+        [tx_ref]
+      );
+    } else {
+      await db.query(
+        `UPDATE payments SET status = 'failed' WHERE tx_ref = ?`,
+        [tx_ref]
+      );
+    }
+    res.json({ message: 'Payment status updated.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Verification failed.' });
   }
 });
 
