@@ -80,23 +80,24 @@ router.get('/:patientId', verifyToken, async (req, res) => {
 
 // INITIATE PAYMENT
 router.post('/pay', verifyToken, async (req, res) => {
-  const { patient_id, amount, phone } = req.body;
+  const { patient_id, amount, phone, network } = req.body;
+
+  // Format phone number (remove leading 0 and add 265)
+  let formattedPhone = phone.replace(/^0/, '265');
 
   try {
     const response = await axios.post(
-      'https://api.paychangu.com/payment',
+      'https://api.paychangu.com/mobile-money',
       {
         amount: amount,
         currency: 'MWK',
-        email: `${phone}@banaward.app`,
-        first_name: 'Guardian',
-        last_name: '',
-        callback_url: 'http://localhost:3000/api/billing/verify',
-        return_url: 'http://localhost:3000/api/billing/success',
+        mobile: formattedPhone,
+        network: network, // AIRTEL or TNM
         tx_ref: `BANA-${patient_id}-${Date.now()}`,
+        callback_url: 'https://bana-ward-api.onrender.com/api/billing/verify',
         customization: {
           title: 'Bana Ward Payment',
-          description: `Hospital bill payment for patient ID ${patient_id}`
+          description: `Hospital bill payment`
         }
       },
       {
@@ -107,11 +108,18 @@ router.post('/pay', verifyToken, async (req, res) => {
       }
     );
 
-    res.json({ payment_url: response.data.data.checkout_url });
+    res.json({
+      success: true,
+      message: response.data.message || 'Payment initiated. Check your phone for USSD prompt.',
+      tx_ref: `BANA-${patient_id}-${Date.now()}`
+    });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Payment initiation failed.' });
+    console.error('Payment error:', err.response?.data || err.message);
+    res.status(500).json({
+      success: false,
+      message: err.response?.data?.message || 'Payment initiation failed.'
+    });
   }
 });
 
