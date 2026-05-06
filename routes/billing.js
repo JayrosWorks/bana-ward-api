@@ -1,77 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
-const { verifyToken } = require('../middleware/auth');
 const axios = require('axios');
+const { verifyToken } = require('../middleware/auth');
+const db = require('../db');
 
-// GET BILLING SUMMARY
+// GET BILLING
 router.get('/:patientId', verifyToken, async (req, res) => {
   try {
-    const patientId = req.params.patientId;
-
-    // Get latest admission
-    const [admissions] = await db.query(
-      `SELECT * FROM nru_admissions WHERE patient_id = ? ORDER BY admission_date DESC LIMIT 1`,
-      [patientId]
+    const response = await axios.get(
+      `${process.env.LOCAL_API_URL}?action=billing&patient_id=${req.params.patientId}`,
+      { headers: { 'ngrok-skip-browser-warning': 'true' } }
     );
-
-    if (admissions.length === 0) {
-      return res.json([]);
-    }
-
-    const admission = admissions[0];
-
-    // Build billing summary from available data
-    const billingItems = [];
-
-    // Admission fee
-    billingItems.push({
-      item: 'Admission Fee',
-      amount: 5000,
-      paid: false
-    });
-
-    // Count prescriptions
-    const [prescriptions] = await db.query(
-      `SELECT COUNT(*) as count FROM nru_prescriptions WHERE admission_id = ?`,
-      [admission.id]
-    );
-    if (prescriptions[0].count > 0) {
-      billingItems.push({
-        item: `Medications (${prescriptions[0].count} prescriptions)`,
-        amount: prescriptions[0].count * 2000,
-        paid: false
-      });
-    }
-
-    // Count feed logs
-    const [feedLogs] = await db.query(
-      `SELECT COUNT(*) as count FROM nru_feed_logs WHERE admission_id = ?`,
-      [admission.id]
-    );
-    if (feedLogs[0].count > 0) {
-      billingItems.push({
-        item: `Feeding Sessions (${feedLogs[0].count} sessions)`,
-        amount: feedLogs[0].count * 500,
-        paid: false
-      });
-    }
-
-    // Count vitals
-    const [vitals] = await db.query(
-      `SELECT COUNT(*) as count FROM nru_vitals WHERE admission_id = ?`,
-      [admission.id]
-    );
-    if (vitals[0].count > 0) {
-      billingItems.push({
-        item: `Vitals Monitoring (${vitals[0].count} sessions)`,
-        amount: vitals[0].count * 300,
-        paid: false
-      });
-    }
-
-    res.json(billingItems);
-
+    res.json(response.data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error.' });

@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const db = require('../db');
+const axios = require('axios');
 
-// ===== LOGIN =====
 router.post('/login', async (req, res) => {
   const { childName, guardianPhone } = req.body;
 
@@ -12,16 +11,19 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const [rows] = await db.query(
-      `SELECT * FROM patients WHERE Name = ? AND GuardianPhone = ?`,
-      [childName, guardianPhone]
+    const response = await axios.post(
+      `${process.env.LOCAL_API_URL}?action=login`,
+      { childName, guardianPhone },
+      { headers: { 'ngrok-skip-browser-warning': 'true' } }
     );
 
-    if (rows.length === 0) {
-      return res.status(401).json({ message: 'No record found. Please check the child name and phone number.' });
+    const data = response.data;
+
+    if (!data.success) {
+      return res.status(401).json({ message: data.message || 'No record found.' });
     }
 
-    const patient = rows[0];
+    const patient = data.patient;
 
     const token = jwt.sign(
       { id: patient.PatientID, name: patient.Name },
@@ -36,7 +38,7 @@ router.post('/login', async (req, res) => {
         name: patient.Name,
         gender: patient.Gender,
         dob: patient.DOB,
-        ward_number: patient.Ward,
+        ward_number: patient.ward_number,
         admission_date: patient.admission_date,
         guardian_name: patient.GuardianName,
         guardian_phone: patient.GuardianPhone
