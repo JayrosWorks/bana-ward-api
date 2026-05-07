@@ -33,19 +33,21 @@ router.post('/pay', verifyToken, async (req, res) => {
     );
 
     const response = await axios.post(
-      'https://api.paychangu.com/mobile-money',
+      'https://api.paychangu.com/payment',
       {
-        amount: amount,
-        currency: 'MWK',
-        mobile: formattedPhone,
-        network: network,
-        tx_ref: tx_ref,
-        callback_url: 'https://bana-ward-api.onrender.com/api/billing/verify',
-        customization: {
-          title: 'Bana Ward Payment',
-          description: `Hospital bill payment`
-        }
-      },
+  amount: amount,
+  currency: 'MWK',
+  email: `guardian${patient_id}@banaward.app`,
+  first_name: 'Guardian',
+  last_name: 'Bana Ward',
+  callback_url: 'https://bana-ward-api.onrender.com/api/billing/verify',
+  return_url: 'https://bana-ward-api.onrender.com/api/billing/success',
+  tx_ref: tx_ref,
+  customization: {
+    title: 'Bana Ward Payment',
+    description: `Hospital bill payment`
+  }
+},
       {
         headers: {
           Authorization: `Bearer ${process.env.PAYCHANGU_SECRET_KEY}`,
