@@ -50,9 +50,10 @@ router.post('/pay', verifyToken, async (req, res) => {
 },
       {
         headers: {
-          Authorization: `Bearer ${process.env.PAYCHANGU_SECRET_KEY}`,
-          'Content-Type': 'application/json'
-        }
+  Authorization: `Bearer ${process.env.PAYCHANGU_SECRET_KEY}`,
+  'public-key': process.env.PAYCHANGU_PUBLIC_KEY,
+  'Content-Type': 'application/json'
+}
       }
     );
 
