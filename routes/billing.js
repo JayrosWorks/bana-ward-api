@@ -38,7 +38,11 @@ router.post('/pay', verifyToken, async (req, res) => {
     'TNM': '27494cb5-ba9e-437f-a114-4e7a7686bcca'    // TNM Mpamba
   };
 
-  const operatorId = operatorIds[network?.toUpperCase()] || operatorIds['AIRTEL'];
+  const net = network?.toUpperCase() || '';
+  let operatorId = operatorIds['AIRTEL'];
+  if (net.includes('TNM')) {
+    operatorId = operatorIds['TNM'];
+  }
 
   try {
     await db.query(
@@ -52,6 +56,7 @@ router.post('/pay', verifyToken, async (req, res) => {
         mobile_money_operator_ref_id: operatorId,
         mobile: formattedPhone,
         amount: String(amount),
+        currency: 'MWK',
         charge_id: tx_ref,
         email: `guardian${patient_id}@banaward.app`,
         first_name: 'Guardian',
