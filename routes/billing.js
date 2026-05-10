@@ -112,5 +112,24 @@ router.get('/verify', async (req, res) => {
   }
 });
 
+// CHECK PAYMENT STATUS
+router.get('/status/:tx_ref', verifyToken, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT status FROM payments WHERE tx_ref = ?`,
+      [req.params.tx_ref]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Transaction not found.' });
+    }
+
+    res.json({ status: rows[0].status });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error checking status.' });
+  }
+});
+
 
 module.exports = router;
