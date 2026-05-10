@@ -22,8 +22,16 @@ router.get('/:patientId', verifyToken, async (req, res) => {
 router.post('/pay', verifyToken, async (req, res) => {
   const { patient_id, amount, phone, network } = req.body;
 
+  // Format phone — remove leading 0 and add 265
   let formattedPhone = phone.replace(/^0/, '265');
   const tx_ref = `BANA-${patient_id}-${Date.now()}`;
+
+  // Operator ref IDs from Paychangu
+  // Airtel Malawi and TNM Malawi operator IDs
+  const operatorIds = {
+    'AIRTEL': 'tnm-malawi',   // replace with correct ID from Paychangu dashboard
+    'TNM': 'airtel-malawi'    // replace with correct ID from Paychangu dashboard
+  };
 
   try {
     // Save payment record as pending
@@ -33,33 +41,29 @@ router.post('/pay', verifyToken, async (req, res) => {
     );
 
     const response = await axios.post(
-      'https://api.paychangu.com/payment',
+      'https://api.paychangu.com/mobile-money/payments/initialize',
       {
-  amount: amount,
-  currency: 'MWK',
-  email: `guardian${patient_id}@banaward.app`,
-  first_name: 'Guardian',
-  last_name: 'Bana Ward',
-  callback_url: 'https://bana-ward-api.onrender.com/api/billing/verify',
-  return_url: 'https://bana-ward-api.onrender.com/api/billing/success',
-  tx_ref: tx_ref,
-  customization: {
-    title: 'Bana Ward Payment',
-    description: `Hospital bill payment`
-  }
-},
+        mobile: formattedPhone,
+        mobile_money_operator_ref_id: operatorIds[network],
+        amount: String(amount),
+        charge_id: tx_ref,
+        email: `guardian${patient_id}@banaward.app`,
+        first_name: 'Guardian',
+        last_name: 'Bana Ward'
+      },
       {
         headers: {
-  Authorization: `Bearer ${process.env.PAYCHANGU_SECRET_KEY}`,
-  'public-key': process.env.PAYCHANGU_PUBLIC_KEY,
-  'Content-Type': 'application/json'
-}
+          Authorization: `Bearer ${process.env.PAYCHANGU_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        }
       }
     );
 
+    console.log('Paychangu response:', response.data);
+
     res.json({
       success: true,
-      message: response.data.message || 'Payment initiated. Check your phone for USSD prompt.',
+      message: 'Payment initiated. Check your phone for a USSD prompt to confirm.',
       tx_ref: tx_ref
     });
 
@@ -92,6 +96,25 @@ router.get('/verify', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Verification failed.' });
+  }
+});
+
+// GET OPERATORS
+router.get('/operators', async (req, res) => {
+  try {
+    const response = await axios.get(
+      'https://api.paychangu.com/mobile-money/operators',
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYCHANGU_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    res.json(response.data);
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    res.status(500).json({ message: 'Failed to get operators.' });
   }
 });
 
