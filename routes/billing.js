@@ -22,7 +22,7 @@ router.get('/:patientId', verifyToken, async (req, res) => {
 router.post('/pay', verifyToken, async (req, res) => {
   const { patient_id, amount, phone, network } = req.body;
 
- let formattedPhone = phone.replace(/^0/, '').replace(/^265/, '');
+ let formattedPhone = phone.replace(/\D/g, '').slice(-9);
   const tx_ref = `BANA-${patient_id}-${Date.now()}`;
 
   // Known operator IDs from Paychangu docs
