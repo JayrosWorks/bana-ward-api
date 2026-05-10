@@ -37,25 +37,25 @@ router.post('/pay', verifyToken, async (req, res) => {
       [patient_id, amount, phone, network, tx_ref]
     );
 
-    const response = await axios.post(
-      'https://api.paychangu.com/mobile-money/payments/initialize',
-      {
-        mobile: formattedPhone,
-        mobile_money_operator_ref_id: operatorIds[network],
-        amount: String(amount),
-        charge_id: tx_ref,
-        email: `guardian${patient_id}@banaward.app`,
-        first_name: 'Guardian',
-        last_name: 'Bana Ward'
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYCHANGU_SECRET_KEY}`,
-          'accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+   const response = await axios.post(
+  'https://api.paychangu.com/mobile-money/payments/initialize',
+  {
+    mobile: formattedPhone,
+    amount: String(amount),
+    charge_id: tx_ref,
+    email: `guardian${patient_id}@banaward.app`,
+    first_name: 'Guardian',
+    last_name: 'Bana Ward',
+    callback_url: 'https://bana-ward-api.onrender.com/api/billing/verify'
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${process.env.PAYCHANGU_SECRET_KEY}`,
+      'accept': 'application/json',
+      'Content-Type': 'application/json'
+    }
+  }
+);
 
     console.log('Paychangu response:', JSON.stringify(response.data));
 
