@@ -22,19 +22,16 @@ router.get('/:patientId', verifyToken, async (req, res) => {
 router.post('/pay', verifyToken, async (req, res) => {
   const { patient_id, amount, phone, network } = req.body;
 
-  // Format phone — remove leading 0 and add 265
   let formattedPhone = phone.replace(/^0/, '265');
   const tx_ref = `BANA-${patient_id}-${Date.now()}`;
 
-  // Operator ref IDs from Paychangu
-  // Airtel Malawi and TNM Malawi operator IDs
+  // Known operator IDs from Paychangu docs
   const operatorIds = {
-    'AIRTEL': 'tnm-malawi',   // replace with correct ID from Paychangu dashboard
-    'TNM': 'airtel-malawi'    // replace with correct ID from Paychangu dashboard
+    'AIRTEL': '20be6c20-adeb-4b5b-a7ba-0769820df4fb', // Airtel Malawi
+    'TNM': ''  // TNM — need to fetch from operators endpoint
   };
 
   try {
-    // Save payment record as pending
     await db.query(
       `INSERT INTO payments (patient_id, amount, phone, network, tx_ref, status) VALUES (?, ?, ?, ?, ?, 'pending')`,
       [patient_id, amount, phone, network, tx_ref]
@@ -54,12 +51,13 @@ router.post('/pay', verifyToken, async (req, res) => {
       {
         headers: {
           Authorization: `Bearer ${process.env.PAYCHANGU_SECRET_KEY}`,
+          'accept': 'application/json',
           'Content-Type': 'application/json'
         }
       }
     );
 
-    console.log('Paychangu response:', response.data);
+    console.log('Paychangu response:', JSON.stringify(response.data));
 
     res.json({
       success: true,
@@ -68,7 +66,7 @@ router.post('/pay', verifyToken, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Payment error:', err.response?.data || err.message);
+    console.error('Payment error:', JSON.stringify(err.response?.data) || err.message);
     res.status(500).json({
       success: false,
       message: err.response?.data?.message || 'Payment initiation failed.'
@@ -99,23 +97,5 @@ router.get('/verify', async (req, res) => {
   }
 });
 
-// GET OPERATORS
-router.get('/operators', async (req, res) => {
-  try {
-    const response = await axios.get(
-      'https://api.paychangu.com/mobile-money/operators',
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYCHANGU_SECRET_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-    res.json(response.data);
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    res.status(500).json({ message: 'Failed to get operators.' });
-  }
-});
 
 module.exports = router;
